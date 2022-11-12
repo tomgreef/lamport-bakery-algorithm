@@ -35,8 +35,8 @@ mod BAKERY is
 
     *** Equations
     eq initial (N) = [[< 0 : Dispenser | next: 1 , last: 1 > auxInitial(N) ]] .
-    eq auxInitial (0) = none .
-    eq auxInitial (s N) = < s N : BProcess | mode: sleep, number: 0 > auxInitial(N) .
+    eq auxInitial (0) = < 0 : BProcess | mode: sleep, number: 0 > .
+    eq auxInitial (s N) = < N : BProcess | mode: sleep, number: 0 > auxInitial(N) .
 
     *** Rules
     rl [take-number] : 
