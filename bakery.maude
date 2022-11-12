@@ -5,7 +5,7 @@ mod BAKERY is
 
     *** Sorts
     sorts GBState Mode Conf .
-    subsorts Dispenser BProcess < Conf .
+    subsorts Dispenser BProcess < Configuration .
 
     *** Operations
     op none : -> GBState .
@@ -29,16 +29,13 @@ mod BAKERY is
     op next:_ : Nat -> Attribute [gather (&)] .
     op last:_ : Nat -> Attribute [gather (&)] .
 
-
-
     *** Vars
     var N : Nat .
     var dispenserId : Oid .
     var Dispenser : Dispenser .
-    var Atts : AttributeSet .
 
     *** Equations
-    eq initial(0) =  < dispenserId : Dispenser | next:0 , last:s 0 > .
+    eq initial(0) =  [ [ < dispenserId : Dispenser | next: 0, last: s 0 > ] ] .
     *** eq initial(s N) = < s N : BProcess | mode: sleep, number: 0, Atts > initial(N) .
     
 endm
