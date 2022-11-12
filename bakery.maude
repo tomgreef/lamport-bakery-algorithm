@@ -1,44 +1,40 @@
 mod BAKERY is
     *** Imports
     including CONFIGURATION .
-    including NAT .
+    protecting NAT .
 
     *** Sorts
-    sorts GBState Mode Conf .
-    subsorts Dispenser BProcess < Conf .
+    sorts GBState Mode .
+    subsort Nat < Oid .
 
     *** Operations
-    op none : -> GBState .
-    op [[_]] : Configuration -> GBState [ctor ] .
-    op __ : Conf Conf -> Conf [ctor assoc comm] .
+    op [[_]] : Configuration -> GBState .
     ops sleep wait crit : -> Mode [ctor] .
     op initial : Nat -> GBState .
+    op auxInitial : Nat -> Configuration .
 
     *** Classes
     --- class BProcess | mode: Mode, number: Nat .
     sort BProcess .
     subsort BProcess < Cid .
-    op BProcess: -> BProcess .
+    op BProcess : -> BProcess .
     op mode:_ : Mode -> Attribute [gather (&)] .
     op number:_ : Nat -> Attribute [gather (&)] .
 
     --- class Dispenser | next: Nat, last: Nat .
     sort Dispenser .
     subsort Dispenser < Cid .
-    op Dispenser: -> Dispenser .
+    op Dispenser : -> Dispenser .
     op next:_ : Nat -> Attribute [gather (&)] .
     op last:_ : Nat -> Attribute [gather (&)] .
 
-
-
     *** Vars
     var N : Nat .
-    var dispenserId : Oid .
-    var Dispenser : Dispenser .
-    var Atts : AttributeSet .
 
     *** Equations
-    eq initial(0) =  < dispenserId : Dispenser | next:0 , last:s 0 > .
-    *** eq initial(s N) = < s N : BProcess | mode: sleep, number: 0, Atts > initial(N) .
+    eq initial (0) = [[ < 0 : Dispenser | next: 1 , last: 1 > ]] .
+    eq initial (N) = [[< 0 : Dispenser | next: 1 , last: 1 > auxInitial(N) ]] .
+    eq auxInitial (1) = < 1 : BProcess | mode: sleep, number: 0 >  .
+    eq auxInitial (s N) = < s N : BProcess | mode: sleep, number: 0 > auxInitial(N) .
     
 endm
