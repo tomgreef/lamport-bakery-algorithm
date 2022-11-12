@@ -53,5 +53,22 @@ mod BAKERY is
     [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: crit, number: N > C ]]
     => 
     [[ < D : Dispenser | next: s N, last: L > < P : BProcess | mode: sleep, number: 0 > C ]]  .
-    
 endm
+
+mod ABSTRACT-BAKERY is
+    protecting BAKERY .
+    
+    vars N L P D : Nat .
+    var M : Mode .
+    var C : Configuration .
+    
+    ceq < P : BProcess | mode: M, number: s(N) > = < P : BProcess | mode: M, number: N > if M == sleep = false .
+    ceq < D : Dispenser | next: s N, last: s L > = < D : Dispenser | next: N, last: L > if N > s 0 .
+endm
+eof 
+
+[Q1] rew initial(5) .
+
+[Q2] search initial(5) =>* [[ < D : Dispenser | next: N, last: L > C]] .
+
+[Q3] search initial(5) =>! [[ < 0 : Dispenser | next: N, last: L > C]] .
