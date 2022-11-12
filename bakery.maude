@@ -34,9 +34,8 @@ mod BAKERY is
     var conf : Configuration .
 
     *** Equations
-    eq initial (0) = [[ < 0 : Dispenser | next: 1 , last: 1 > ]] . *** Esta no tiene mucho sentido... ¿La quitamos?
     eq initial (N) = [[< 0 : Dispenser | next: 1 , last: 1 > auxInitial(N) ]] .
-    eq auxInitial (1) = < 1 : BProcess | mode: sleep, number: 0 >  .
+    eq auxInitial (0) = none .
     eq auxInitial (s N) = < s N : BProcess | mode: sleep, number: 0 > auxInitial(N) .
 
     *** Rules
