@@ -30,8 +30,8 @@ mod BAKERY is
 
     *** Vars
     vars N L : Nat .
-    vars dispenserId processId : Oid .
-    var conf : Configuration .
+    vars D P : Oid .
+    var C : Configuration .
 
     *** Equations
     eq initial (N) = [[< 0 : Dispenser | next: 1 , last: 1 > auxInitial(N) ]] .
@@ -40,18 +40,18 @@ mod BAKERY is
 
     *** Rules
     rl [take-number] : 
-    [[ < dispenserId : Dispenser | next: N, last: L > < processId : BProcess | mode: sleep, number: 0 > conf ]] 
+    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: sleep, number: 0 > C ]] 
     => 
-     [[ < dispenserId : Dispenser | next: N, last: s L > < processId : BProcess | mode: wait, number: L > conf ]] .
+    [[ < D : Dispenser | next: N, last: s L > < P : BProcess | mode: wait, number: L > C ]] .
 
     rl [get-atended] : 
-    [[ < dispenserId : Dispenser | next: N, last: L > < processId : BProcess | mode: wait, number: N > conf ]] 
+    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: wait, number: N > C ]] 
     => 
-    [[ < dispenserId : Dispenser | next: N, last: L > < processId : BProcess | mode: crit, number: N > conf ]]  .
+    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: crit, number: N > C ]]  .
 
     rl [leave] : 
-    [[ < dispenserId : Dispenser | next: N, last: L > < processId : BProcess | mode: crit, number: N > conf ]]
+    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: crit, number: N > C ]]
     => 
-    [[ < dispenserId : Dispenser | next: s N, last: L > < processId : BProcess | mode: sleep, number: 0 > conf ]]  .
+    [[ < D : Dispenser | next: s N, last: L > < P : BProcess | mode: sleep, number: 0 > C ]]  .
     
 endm
