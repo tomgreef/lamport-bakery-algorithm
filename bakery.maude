@@ -44,7 +44,7 @@ mod BAKERY is
     => 
     [[ < D : Dispenser | next: N, last: s L > < P : BProcess | mode: wait, number: L > C ]] .
 
-    rl [get-atended] : 
+    rl [get-attended] : 
     [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: wait, number: N > C ]] 
     => 
     [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: crit, number: N > C ]]  .
@@ -65,10 +65,51 @@ mod ABSTRACT-BAKERY is
     ceq < P : BProcess | mode: M, number: s(N) > = < P : BProcess | mode: M, number: N > if M == sleep = false .
     ceq < D : Dispenser | next: s N, last: s L > = < D : Dispenser | next: N, last: L > if N > s 0 .
 endm
-eof 
+
+load model-checker.maude
+
+mod ABSTRACT-BAKERY-PREDS is
+    protecting ABSTRACT-BAKERY .
+    including SATISFACTION .
+    including QID . 
+
+    subsort GBState < State .
+
+    *** Operations
+    op processIn : Nat Mode -> Prop . 
+    op notInMutex : -> Prop .
+
+    *** Vars
+    var m : Mode .
+    vars ID ID' : Nat .
+    vars N N' : Nat .
+    var C : Configuration . 
+        
+    *** Equations
+    eq [[ < ID : BProcess | mode: m, number: N > C ]] |= processIn(ID, m) = true . 
+    eq [[ < ID : BProcess | mode: crit, number: N >
+          < ID' : BProcess | mode: crit, number: N' > C ]] |= notInMutex = true .
+
+endm 
+
+mod BAKERY-CHECK is
+    protecting ABSTRACT-BAKERY-PREDS .
+    including MODEL-CHECKER .
+    including LTL-SIMPLIFIER .
+endm
+
+eof
 
 [Q1] rew initial(5) .
 
 [Q2] search initial(5) =>* [[ < D : Dispenser | next: N, last: L > C]] .
 
 [Q3] search initial(5) =>! [[ < 0 : Dispenser | next: N, last: L > C]] .
+
+[Q4]
+
+[Q5]
+
+[Q6]
+
+[Q7] 

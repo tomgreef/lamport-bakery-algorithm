@@ -1,0 +1,321 @@
+load parallel.maude
+
+mod EXPRESSION-INT is
+    extending PARALLEL .
+
+    vars E E’ : Expression .
+    var M : Memory . 
+
+    op _=_  : Expression Expression -> Test .
+    op _>’_ : Expression Expression -> Test .
+    op _!=_ : Expression Expression -> Test .
+    
+    eq  eval(E = E’, M) = eval(E, M) == eval(E’, M) . 
+    eq  eval(E >’ E’, M) = eval(E, M) > eval(E’, M) . 
+    eq  eval(E != E’, M) = eval(E,M) =/= eval(E’,M) .
+
+endm
+
+mod EXPRESSION-BOOL is 
+    extending EXPRESSION-INT . 
+    
+    pr QID * (sort Qid to BQid, op qid to bqid) .
+    sort BExpression . 
+    subsorts BQid Bool < BExpression .
+
+    op [_,_] : BQid Bool -> Memory .
+    --- op _in_ : BQid Memory -> Bool? . ---- cell allocated for Q?
+    op _=_  : BExpression BExpression -> Test .
+    op _!=_ : BExpression BExpression -> Test .
+    op eval : BExpression Memory -> Bool .
+
+    var BQ : BQid . 
+    vars B B’ : Bool . 
+    vars BE BE’ : BExpression .
+    var M : Memory .
+
+    op _BQidInMemory_ : BQid Memory -> Bool? .
+    eq BQ BQidInMemory ([BQ, BE] M) = true .
+    eq BQ BQidInMemory M = false [owise] .
+
+    eq eval(B, M) = B .
+    eq eval(BQ, [BQ, B] M) = B . 
+    ceq eval(BQ,M) = false if BQ BQidInMemory M == false .
+
+    --- EQUALS
+    --- With Variables
+    eq  eval(BQ = B, [BQ, B’] M) = B == B’ .
+    ceq eval(BQ = B, M) = B == false if BQ BQidInMemory M == false .
+
+    --- With Literals
+    eq  eval(BE = BE’, M) = eval(BE, M) == eval(BE’, M) . 
+
+    --- NOT EQUALS
+    --- With Variables
+    ceq eval(BQ != B, M) = B == false if BQ BQidInMemory M == true .
+    eq  eval(BQ != B, [BQ, B’] M) = B =/= B’ .
+    
+    --- With Literals
+    eq  eval(BE != BE’, M) = eval(BE, M) =/= eval(BE’, M) . 
+
+endm
+
+mod EXPRESSION++ is 
+    including EXPRESSION-INT .
+    including EXPRESSION-BOOL .
+endm
+
+--- Aux Bool module with undefined value
+mod BOOL+ is
+    inc BOOL .
+    sort Bool+ .
+    subsort Bool+ < Bool .
+    op undf : -> Bool .
+endm
+
+--- Aux Integer module with undefined value
+mod INT+ is
+    inc INT .
+    sort Int+ .
+    subsort Int+ < Int .
+    op undf : -> Int .
+endm
+
+--- Defines default for Booleans
+view Bool0 from DEFAULT to BOOL+ is
+  sort Elt to Bool+ .
+  op 0 to term undf .
+endv
+
+--- Defines default for Expression
+view Expression from DEFAULT to EXPRESSION++ is
+  sort Elt to Expression .
+endv
+
+--- Defines default for BExpression
+view BExpression from DEFAULT to EXPRESSION++ is
+  sort Elt to BExpression .
+  op 0 to term ' .
+endv
+
+--- Instanciation of array for QID, BExpression and Expression
+mod QID-EXPRESSION-ARRAY is
+    extending EXPRESSION-BOOL .
+    extending PARALLEL .
+
+    pr ARRAY{Nat, Expression} .
+    pr ARRAY{Nat, BExpression} * (sort Array to BArray) .
+endm
+
+mod EXPRESSION-ARRAY is 
+    extending PARALLEL .
+    pr QID-EXPRESSION-ARRAY .
+
+    pr QID * (sort Qid to AQid, op qid to aqid) .
+
+    --- MEMORY
+    --- [a, {1, 3, 5}] [b, {3, 4, 5}] - For Expression (Integers)
+    --- [a, {true}] [b, {false, true, false}] - For BExpression (Booleans)
+    op [_,_] : Qid Array{Nat, Expression}   -> Memory .
+    op [_,_] : BQid Array{Nat, BExpression} -> Memory .
+
+    --- EXPRESSIONS
+    ---  'a[2] := 4
+    ---  ['a, A] con ['a, insert(eval(4, M), eval(2, M), A)]
+    sort BArray .
+    subsort BArray < BExpression .
+    op _[_] : BQid Expression -> BArray . --- For Bools
+
+    sort Array .
+    subsort Array < Expression .
+    op _[_] : Qid Expression -> Array . --- For Ints
+
+    op _:=_ : BArray BExpression -> Program .
+    op _:=_ : Array Expression -> Program .
+
+    var  M : Memory .
+    var  BQ : BQid .
+    var AQ : Qid .
+    vars Idx E : Expression .
+    var B : Array{Nat, BExpression} .
+    var X : Array{Nat, Expression} .
+    var  BE : BExpression .
+    var I : Pid . 
+    var R : Program . 
+    var  S : Soup .
+    var Ent : Entry{Nat, Expression} .
+    var BEnt : Entry{Nat, BExpression} .
+    var N : Nat .
+    
+    eq eval(BQ[N], [BQ, B] M) = B[N] .
+    eq eval(AQ[N], [AQ, X] M) = X[N] .
+    
+    op _BQidInArrayMemory_ : BQid Memory -> Bool .
+    eq BQ BQidInArrayMemory ([BQ, B] M) = true .
+    eq BQ BQidInArrayMemory M = false [owise] .
+
+    op _QidInArrayMemory_ : Qid Memory -> Bool .
+    eq AQ QidInArrayMemory ([AQ, X] M) = true .
+    eq AQ QidInArrayMemory M = false [owise] .
+
+    --- ARRAY OF BOOLEANS
+    --- Array exists, insert
+    rl [BArrayInsert] : {[I, (BQ[Idx] := BE) ; R] | S, [BQ, B] M} 
+      => {[I, R] | S, [BQ, insert(eval(Idx, [BQ, B] M), eval(BE, [BQ, B] M), B)] M} .
+
+    --- Array does not exist, initialize
+   crl [BArrayCreate] :  {[I, (BQ[Idx] := BE) ; R] | S, M} 
+      => {[I, R] | S, [BQ, insert(eval(Idx, M), eval(BE, M), empty)] M} 
+      if BQ BQidInArrayMemory M == false .
+
+    --- ARRAY OF INTEGERS
+    rl {[I, (AQ[Idx] := E) ; R] | S, [AQ, X] M} 
+       => {[I, R] | S, [AQ, insert(eval(Idx, [AQ, X] M), eval(E, [AQ, X] M), X)] M} .
+
+   crl {[I, (AQ[Idx] := E) ; R] | S, M} 
+      => {[I, R] | S, [AQ, insert(eval(Idx, M), eval(E, M), empty)] M} 
+      if AQ QidInArrayMemory M == false .
+
+    --- EVAL
+    --- 'a[3]
+    --- A[eval(3, M)]
+    --- eval(a = b, [a, true] [b, false])
+
+endm
+
+mod SEQUENTIAL++ is 
+    extending PARALLEL . 
+
+    vars P R W : Program . 
+    var  S : Soup .
+    var  T : Test . 
+    var M : Memory .
+    var I : Pid . 
+    
+    op if_then_else_fi : Test Program Program -> Program .
+    op repeat_until_li : Program Test -> Program .
+
+    rl {[I, if T then P else W fi ; R] | S, M}  
+      => {[I, if eval(T, M) then P else W fi ; R] | S, M}  .   
+
+    rl {[I, repeat P until T li ; R] | S, M} 
+     => {[I, (P ; if eval(T,M) then skip else (repeat P until T li) fi ; R)] | S, M} .
+
+    --- {[1, repeat skip until 1 = 2 li] | []}
+    --- false
+
+    ---  {[1, skip ; repeat skip until 1 = 2 li] | []}
+
+    ---  {[1, (skip ; repeat skip until 1 = 2 li)] | []}
+ 
+
+    ---  crl {[I, repeat P until T li ; R] | S, M} 
+    ---   => {[I, P ; repeat P until T li ; R] | S, M} if eval(T,M) =/= true .
+
+    --- crl {[I, repeat P until T li ; R] | S, M} 
+    ---     => {[I, R] | S, M} if eval(T,M) == true .
+endm
+
+
+mod PARALLEL++ is
+    inc PARALLEL . 
+    inc SEQUENTIAL++ . 
+    inc EXPRESSION++ .
+    inc EXPRESSION-ARRAY .
+
+    var  M : Memory .
+    var  BQ : BQid .
+    var  Q : Qid .  
+    var B : Bool .
+    var  BE : BExpression .
+    var  E : Expression .
+    var I : Pid . 
+    var R : Program . 
+    var  S : Soup .
+
+    op _QidInMemory_ : Qid Memory -> Bool .
+    eq Q QidInMemory ([Q, E] M) = true .
+    eq Q QidInMemory M = false [owise] .
+
+    crl {[I, (Q := E) ; R] | S, M} 
+      => {[I, R] | S, [Q, eval(E, M)] M} 
+      if Q QidInMemory M == false .
+
+    rl [BoolAssign] : {[I, (BQ := BE) ; R] | S, [BQ, B] M} 
+      => {[I, R] | S, [BQ, eval(BE, [BQ, B] M)] M} .
+
+   crl [BoolCreate] : {[I, (BQ := BE) ; R] | S, M} 
+      => {[I, R] | S, [BQ, eval(BE, M)] M} 
+      if BQ BQidInMemory M == false .
+
+endm 
+
+mod PRUEBAS++ is
+    inc PARALLEL++ .
+    inc PARALLEL .
+
+    op p1 : -> Program . 
+    op p2 : -> Program .
+    op p3 : -> Program .
+    
+    op initial : -> MachineState .
+    eq initial = { [1, p1] | [2, p2], ['test, 5] ['result2, 0] ['result, 3] } .
+
+    op initial1 : -> MachineState .
+    eq initial1 = { [1, p1], ['test, 5] ['result2, 0] ['result, 3] } .
+    
+    op initial2 : -> MachineState .
+    eq initial2 = { [1, p2], ['test, 25] ['result2, 0] ['result, 13] } .
+
+    op initial3 : -> MachineState .
+    eq initial3 = { [1, p3], ['result2, 0] } .
+
+    ops crit1 crit2 : -> UserStatement .
+    ops rem1 rem2 : -> LoopingUserStatement .
+   
+    eq p1
+       = 
+        --- 'test2 := 'test2 +’ 1 .
+        --- 'prueba[2] := false ;
+        --- 'result2 := true .
+       --- repeat  'wants_to_enter[0] := true ; 'test2 := 'test2 +’ 1 ; 'result := 'result -’ 1 ; 
+        while 'test >’ 'result do  
+          'result := 'result +’ 1 ; 
+          if 'result2 != 0 then
+              'wants_to_enter[0] := false 
+                 ---   while 'turn != 0 do
+                 ---       skip 
+              ---      od ;
+              
+          else 
+            ---        skip 
+            'result2 := 'result2 +’ 1 
+          fi 
+        od . 
+         
+    eq p2
+       = 
+        --- 'test2 := 'test2 +’ 1 .
+        --- 'prueba[2] := false ;
+        --- 'result2 := true .
+       --- repeat  'wants_to_enter[0] := true ; 'test2 := 'test2 +’ 1 ; 'result := 'result -’ 1 ; 
+        while 'test >’ 'result do 
+          'result := 'result +’ 7 ; 
+          if 'result2 != 0 then
+              'wants_to_enter[0] := true 
+                 ---   while 'turn != 0 do
+                 ---       skip 
+              ---      od ;
+              
+          else 
+            ---        skip  
+            'result2 := 'result2 +’ 3 
+          fi 
+        od . 
+       --- until 'test2 != 10 li .
+  ---      if 'test2 != 10 then 'result2 := 5 else 'result2 := 9 fi .
+     eq p3 = 
+      repeat 
+        skip
+      until true != true li .
+endm

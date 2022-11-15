@@ -1,0 +1,80 @@
+load bakery.maude 
+
+mod BAKERY+ is 
+    extending BAKERY . 
+    including CONFIGURATION .
+
+    *** Operations
+    op noNext : Nat Configuration -> Bool .
+    op waitingCountPlus : Configuration -> Nat .
+
+    *** Equations
+    eq  noNext (N, none)                                    = true .
+    eq  noNext (N, < D : Dispenser | next: N, last: L >)    = true . 
+    ceq noNext (N, < P : BProcess | mode: M, number: T >)   = false if N == T .
+    ceq noNext (N, < P : BProcess | mode: M, number: T >)   = true if N =/= T .
+    ceq noNext (N, < P : BProcess | mode: M, number: T > C) = 
+        noNext(N, < P : BProcess | mode: M, number: T >) 
+        and noNext(N, C) if C =/= none . 
+
+    *** Vars
+    vars N L T  : Nat .
+    vars D P    : Oid .
+    var C       : Configuration .
+    var M       : Mode .
+
+    *** Rules
+    rl [leave-bakery-unattended] : < P : BProcess | mode: wait, number: N >  =>  < P : BProcess | mode: sleep, number: 0 > . 
+
+    crl [next] : [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: M, number: T > C ]]
+      => [[ < D : Dispenser | next: s N, last: L > < P : BProcess | mode: M, number: T > C ]]
+        if (noNext(N, < P : BProcess | mode: M, number: T > C) == true) .
+endm  
+
+mod ABSTRACT-BAKERY+ is 
+    including BAKERY+ .
+
+    *** Operations
+    op  ProcessHasNumber : Nat Configuration -> Bool .
+    op  MinNumberNotZero : Nat Configuration -> Nat .
+    op  p : Nat -> Nat .
+
+    *** Vars
+    vars N L T X    : Nat .
+    vars P D        : Oid .
+    var M           : Mode .
+    var C           : Configuration .
+
+    *** Equations
+    eq  ProcessHasNumber (X, none)                                     = false .
+    eq  ProcessHasNumber (X, < D : Dispenser | next: N, last: L > C)   = false or ProcessHasNumber(X, C) .  
+    ceq ProcessHasNumber (X, < P : BProcess | mode: M, number: N > C)  = true  or ProcessHasNumber(X, C) if X == N .
+    ceq ProcessHasNumber (X, < P : BProcess | mode: M, number: N > C)  = false or ProcessHasNumber(X, C) if X =/= N .
+
+    eq  MinNumberNotZero (X, none)                                      = X .
+    eq MinNumberNotZero (X, < D : Dispenser | next: N, last: L >)       = X .
+    ceq MinNumberNotZero (X, < P : BProcess | mode: M, number: N > C )  = MinNumberNotZero(min(X, N), C) if (N > 0 and X =/= 0) .
+    ceq MinNumberNotZero (X, < P : BProcess | mode: M, number: N > C )  = MinNumberNotZero(N, C) if (N > 0 and X == 0) .
+    ceq MinNumberNotZero (X, < P : BProcess | mode: M, number: N > C )  = MinNumberNotZero(X, C) if (N == 0) .
+
+    eq p (0)     = 1 .
+    eq p (1)     = 1 .
+    eq p (s s X) = s X . 
+
+    ceq [AbsDispLastPred] : ([[< D : Dispenser | next: N, last: L > C]]) = [[< D : Dispenser | next: N, last: p(L) > C]]
+        if ((ProcessHasNumber(p(L), C) == false) and (L > 1)) .
+    ceq [AbsDispNextPred] : ([[< D : Dispenser | next: N, last: L > C]]) = [[< D : Dispenser | next: p(N), last: L > C]]
+        if ((N > MinNumberNotZero(N,C)) and (N > 1)) .
+    ceq [AbsProcPred] : ([[< P : BProcess | mode: wait, number: T > C]]) = [[ < P : BProcess | mode: wait, number: p(T) > C]]
+        if ((ProcessHasNumber(p(T), C) == false) and (T > 1)) .
+endm
+
+eof
+
+[Q8]
+
+[Q9]
+
+[Q10] 
+
+[Q11] 
