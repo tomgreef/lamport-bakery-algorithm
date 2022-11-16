@@ -32,6 +32,7 @@ mod BAKERY is
     vars N L : Nat .
     vars D P : Oid .
     var C : Configuration .
+    var Atts : Attribute .
 
     *** Equations
     eq initial (N) = [[< 0 : Dispenser | next: 1 , last: 1 > auxInitial(N) ]] .
@@ -40,30 +41,35 @@ mod BAKERY is
 
     *** Rules
     rl [take-number] : 
-    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: sleep, number: 0 > C ]] 
+    < D : Dispenser | last: L, Atts > < P : BProcess | mode: sleep, number: 0 > C
     => 
-    [[ < D : Dispenser | next: N, last: s L > < P : BProcess | mode: wait, number: L > C ]] .
+    < D : Dispenser | last: s L, Atts > < P : BProcess | mode: wait, number: L > C .
 
     rl [get-attended] : 
-    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: wait, number: N > C ]] 
+    < D : Dispenser | next: N, Atts > < P : BProcess | mode: wait, number: N > C 
     => 
-    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: crit, number: N > C ]]  .
+    < D : Dispenser | next: N, Atts > < P : BProcess | mode: crit, number: N > C .
 
     rl [leave] : 
-    [[ < D : Dispenser | next: N, last: L > < P : BProcess | mode: crit, number: N > C ]]
+    < D : Dispenser | next: N, Atts > < P : BProcess | mode: crit, number: N > C
     => 
-    [[ < D : Dispenser | next: s N, last: L > < P : BProcess | mode: sleep, number: 0 > C ]]  .
+    < D : Dispenser | next: s N, Atts > < P : BProcess | mode: sleep, number: 0 > C  .
 endm
 
 mod ABSTRACT-BAKERY is
     protecting BAKERY .
     
-    vars N L P D : Nat .
+    vars N L D P : Nat .
     var M : Mode .
     var C : Configuration .
+    var Atts : Attribute .
     
-    ceq < P : BProcess | mode: M, number: s(N) > = < P : BProcess | mode: M, number: N > if M == sleep = false .
-    ceq < D : Dispenser | next: s N, last: s L > = < D : Dispenser | next: N, last: L > if N > s 0 .
+    op decrement : Configuration -> Configuration .
+    eq decrement (none) = none .
+    ceq decrement (< P : BProcess | mode: M, number: s N > C) = < P : BProcess | mode: wait, number: N > decrement (C) if M =/= sleep .
+    eq decrement (< P : BProcess | Atts > C) = < P : BProcess | Atts > decrement (C) [owise] .
+
+    eq [[ < D : Dispenser | next: s s N, last: s L > C ]] = [[ < D : Dispenser | next: s N, last: L > decrement (C) ]] .
 endm
 
 load model-checker.maude
@@ -80,15 +86,15 @@ mod ABSTRACT-BAKERY-PREDS is
     op notInMutex : -> Prop .
 
     *** Vars
-    var m : Mode .
-    vars ID ID' : Nat .
+    var M : Mode .
+    vars P P' : Nat .
     vars N N' : Nat .
     var C : Configuration . 
         
     *** Equations
-    eq [[ < ID : BProcess | mode: m, number: N > C ]] |= processIn(ID, m) = true . 
-    eq [[ < ID : BProcess | mode: crit, number: N >
-          < ID' : BProcess | mode: crit, number: N' > C ]] |= notInMutex = true .
+    eq [[ < P : BProcess | mode: M, number: N > C ]] |= processIn(P, M) = true . 
+    eq [[ < P : BProcess | mode: crit, number: N >
+          < P' : BProcess | mode: crit, number: N' > C ]] |= notInMutex = true .
 
 endm 
 
@@ -102,14 +108,29 @@ eof
 
 [Q1] rew initial(5) .
 
-[Q2] search initial(5) =>* [[ < D : Dispenser | next: N, last: L > C]] .
+[Q2] search [,1000]  initial(5) =>* [[ < O:Oid : BProcess | mode: crit, number: N:Nat > < O2:Oid : BProcess | mode: crit, number: M:Nat > C:Configuration ]] .
 
-[Q3] search initial(5) =>! [[ < 0 : Dispenser | next: N, last: L > C]] .
+[Q3] search [,1000] initial(5) =>! G:GBState .
 
 [Q4]
 
-[Q5]
+[Q5] search initial(5) =>* G:GBState .
 
-[Q6]
+[Q6] red modelCheck(initial(5), [] ~ (processIn(N:Nat, crit) /\ processIn(M:Nat, crit))) . *** is bad
 
-[Q7] 
+[Q7] red modelCheck(initial(5), [] (processIn(1, wait) -> <> processIn(1, crit)
+/\ (processIn(1, crit) -> <> processIn(1, sleep))
+/\ (processIn(1, sleep) -> <> processIn(1, wait))
+/\ processIn(2, wait) -> <> processIn(2, crit)
+/\ (processIn(2, crit) -> <> processIn(2, sleep))
+/\ (processIn(2, sleep) -> <> processIn(2, wait)) 
+/\ processIn(3, wait) -> <> processIn(3, crit)
+/\ (processIn(3, crit) -> <> processIn(3, sleep))
+/\ (processIn(3, sleep) -> <> processIn(3, wait)) 
+/\ processIn(4, wait) -> <> processIn(4, crit)
+/\ (processIn(4, crit) -> <> processIn(4, sleep))
+/\ (processIn(4, sleep) -> <> processIn(4, wait)) 
+/\ processIn(5, wait) -> <> processIn(5, crit)
+/\ (processIn(5, crit) -> <> processIn(5, sleep))
+/\ (processIn(5, sleep) -> <> processIn(5, wait)) 
+)) .

@@ -73,8 +73,10 @@ eof
 
 [Q8]
 
-[Q9]
+[Q9] search [,10]  initial(5) =>* [[ < O:Oid : BProcess | mode: crit, number: N:Nat > < O2:Oid : BProcess | mode: crit, number: M:Nat > C:Configuration ]] .
 
 [Q10] 
 
 [Q11] 
+    search initial(5) =>! G:GBState .
+    search initial(5) =>* [[ < O:Oid : BProcess | mode: crit, number: N:Nat > < O2:Oid : BProcess | mode: crit, number: M:Nat > C:Configuration ]] .
