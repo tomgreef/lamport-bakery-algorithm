@@ -1,0 +1,153 @@
+load parallel.maude
+
+fmod MEMORY++ is
+    extending MEMORY .
+    protecting QID * (sort Qid to BQid, op qid to bqid) .
+    vars Q : BQid .
+    var N : Bool .
+    var M : Memory .
+    var I : Int .
+
+    op [_,_] : BQid Bool -> Memory .
+    op _in_ : BQid Memory -> Bool? .
+    eq Q in [Q, N] M = true . ---- incomplete, only positive cases
+
+    sort Array BArray .
+
+    var A : Array .
+    op [_,_] : Array Int -> Memory .
+    op _in_ : Array Memory -> Bool? .
+    eq A in [A, I] M = true . ---- incomplete, only positive cases
+
+    var BA : BArray .
+    op [_,_] : BArray Bool -> Memory .
+    op _in_ : BArray Memory -> Bool? .
+    eq BA in [BA, N] M = true . ---- incomplete, only positive cases
+
+endfm
+
+mod TESTS++ is
+    extending TESTS .
+    protecting MEMORY++ .
+    protecting EXPRESSION++ .    
+
+    op _=_ : Expression Expression -> Test .
+    op _=_ : BExpression BExpression -> Test .
+    op _>'_ : Expression Expression -> Test .
+    op _!=_ : Expression Expression -> Test .
+    op _!=_ : BExpression BExpression -> Test .
+
+    vars BE BE' : BExpression .
+    vars E E' : Expression .
+    var M : Memory .
+
+    eq eval(E = E', M) = eval(E,M) == eval(E',M) .
+    eq eval(BE = BE', M) = eval(BE,M) == eval(BE',M) .
+    eq eval(E >' E', M) = eval(E,M) > eval(E',M) .
+    eq eval(E != E', M) = eval(E,M) =/= eval(E',M) .
+    eq eval(BE != BE', M) = eval(BE,M) =/= eval(BE',M) .
+    
+endm
+
+fmod EXPRESSION++ is
+    extending EXPRESSION .
+    protecting MEMORY++ .
+    sort BExpression .
+    subsorts BQid Bool < BExpression .
+
+    op _and'_ : BExpression BExpression -> BExpression [ctor] .
+    op _or'_ : BExpression BExpression -> BExpression [ctor] .
+    op not' : BExpression -> BExpression [ctor] .
+    op eval : BExpression Memory -> Bool .
+
+    op eval : Array Memory -> Int .
+    op eval : BArray Memory -> Bool .
+    
+    var Q : BQid . 
+    var M : Memory . 
+    vars B B' : Bool . 
+    vars BE BE' : BExpression .
+    var A : Array .
+    var I : Int .
+    var BA : BArray .
+
+    eq eval(B, M) = B .
+    eq eval(Q, [Q, B] M) = B . 
+    ceq eval(Q,M) = false if Q in M =/= true .
+    eq eval(BE and' BE', M) = eval(BE, M) and eval(BE', M) .
+    eq eval(BE or' BE', M) = eval(BE, M) or eval(BE', M) .
+    eq eval(not'(BE), M) = not (eval(BE, M)) .
+
+    eq eval(A, [A, I] M) = I .
+    ceq eval(A,M) = 0 if A in M =/= true .
+
+    eq eval(BA, [BA, B] M) = B .
+    ceq eval(BA,M) = false if BA in M =/= true .
+endfm
+
+mod SEQUENTIAL++ is
+    extending SEQUENTIAL .
+    protecting MEMORY++ .
+    protecting EXPRESSION++ .
+
+    subsort Array < Expression .
+    op _[_] : Qid Expression -> Array .
+
+    subsort BArray < BExpression .
+    op _[_] : BQid Expression -> BArray .
+
+    op _:=_ : BQid BExpression -> Program .
+    op _:=_ : Array Expression -> Program .
+    op _:=_ : BArray BExpression -> Program . 
+    op if_then_else_fi : Test Program Program -> Program .
+    op repeat_until_li : Program Test -> Program .
+endm
+
+mod PARALLEL++ is
+    protecting TESTS++ .
+    protecting EXPRESSION++ .
+    protecting SEQUENTIAL++ . 
+    extending PARALLEL . 
+    var A : Array .
+    var BA : BArray .
+
+    vars P P' R : Program . 
+    var  S : Soup .
+    var  U : UserStatement . 
+    var  L : LoopingUserStatement .
+    vars I J : Pid . 
+    var BQ : BQid .
+    var  M : Memory .
+    var  Q : Qid . 
+    vars N X : Int .
+    var  T : Test . 
+    var  E : Expression .
+    var BE : BExpression .
+    vars B BX : Bool .
+
+    rl {[I, (BQ := BE) ; R] | S, [BQ, BX] M} 
+      => {[I, R] | S, [BQ, eval(BE, [BQ, BX] M)] M} .
+    crl {[I, (BQ := BE) ; R] | S, M} 
+      => {[I, R] | S, [BQ, eval(BE, M)] M} 
+      if BQ in M =/= true .
+
+    rl {[I, (A := E) ; R] | S, [A, X] M} 
+      => {[I, R] | S, [A, eval(E, [A, X] M)] M} .
+    crl {[I, (A := E) ; R] | S, M} 
+      => {[I, R] | S, [A, eval(E, M)] M} 
+      if A in M =/= true .
+
+    rl {[I, (BA := BE) ; R] | S, [BA, BX] M} 
+      => {[I, R] | S, [BA, eval(BE, [BA, BX] M)] M} .
+    crl {[I, (BA := BE) ; R] | S, M} 
+      => {[I, R] | S, [BA, eval(BE, M)] M} 
+      if BA in M =/= true .
+    
+    rl {[I, if T then P else P' fi ; R] | S, M} 
+      => {[I, if eval(T, M) then P else P' fi ; R] | S, M} .
+    rl {[I, repeat P until T li ; R] | S, M} 
+      => {[I, P ; if eval(T, M) then skip else repeat P until T li fi ; R] | S, M} .
+endm
+eof
+
+rew { S:Soup | [1:Pid, array:Qid[0] := 0 ; i:Qid := 0 ; repeat ( array:Qid[0] := array:Qid[0] +' 1 ; i:Qid := i:Qid +' 1 ) until i:Qid = 9 li ; if array:Qid[0] = 10 then   happy:Program else   sad:Program fi], M:Memory} .

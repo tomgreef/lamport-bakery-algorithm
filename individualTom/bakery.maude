@@ -1,0 +1,43 @@
+load parallel++.maude
+
+mod BAKERY is
+    including PARALLEL++ .
+
+    *** Operations
+    op crit : -> UserStatement .
+    op loop : -> LoopingUserStatement .
+    op program : Int -> Program .
+    op initial : Nat -> MachineState .
+    op initialAux : Nat -> Soup .
+  
+    *** Vars
+    vars i N : Nat .
+    
+    *** Equations
+    eq initial(N) = { initialAux(N) , ['n, 1] ['NUM_THREADS, N] } .
+
+    eq initialAux(0) = empty .
+    eq initialAux(s N) = [N, program(N)] | initialAux(N) .
+
+    eq program(i) 
+      = 'Entering[i] := false ;
+        while true = true do
+            'Entering[i] := true ;
+            'Number[i] := 'n + 0 ;
+            'n := 'n + 1 ;
+            'j := 1 ;
+            repeat
+                while 'Entering['j] = true do skip od ;
+                while 'Number['j] != 0 do skip od ;
+                'j := 'j + 1 
+            until 'j >' 'NUM_THREADS li ;
+            crit ;
+            'Number[i] := 0 ;
+            loop
+        od .
+endm
+eof
+
+search initial(5) =>* {S:Soup | [I:Pid, crit ; R:Program] | [I':Pid, crit ; R':Program], M:Memory} .
+
+search initial(5) =>! MS:MachineState . 
