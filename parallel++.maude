@@ -1,1 +1,182 @@
-load parallel.maude
+fmod MEMORY++ is
+    including MEMORY .
+    protecting QID * (sort Qid to BQid, op qid to bqid) .
+
+    *** Sorts
+    sorts IntVar BoolVar List BList .
+    subsort IntVar < Qid .
+    subsort BoolVar < BQid .
+    subsort Int < List .
+    subsort Bool < BList .
+    
+    *** Variables
+    var IV : IntVar .
+    var BV : BoolVar .
+    var M : Memory .
+    var B BX BY : Bool .
+    var L : List .
+    var BL : BList .
+    vars N X Y : Int .
+
+    *** Operaciones
+    op [_,_] : BQid Bool -> Memory .
+    op _in_ : BQid Memory -> Bool? .
+    op none : -> List [ctor] .
+    op __ : List List -> List [ctor assoc id: none] .
+    op none : -> BList [ctor] .
+    op __ : BList BList -> BList [ctor assoc id: none] .
+    op [_,_] : IntVar List -> Memory .
+    op [_,_] : BoolVar BList -> Memory .
+    op get : List Int -> Int .
+    op put : List Int Int -> List .
+    op get : BList Int -> Bool .
+    op put : BList Int Bool -> BList .
+
+
+    *** Ecuaciones
+    eq BV in [BV,B] M = true .
+    eq IV in [IV,L] M = true .
+    eq BV in [BV,BL] M = true .
+
+    eq get(none, N) = 0 .
+    eq get(X L, s N) = get(L,N) .
+    eq get(X L, 0) = X .
+
+    eq put(none, s N, X) = 0 put(none, N, X) .
+    eq put(none, 0, X) = X .
+    eq put(X L, s N, Y) = X put(L,N,Y) .
+    eq put(X L, 0, Y) = Y L .
+
+    eq get(none, N) = 0 .
+    eq get(BX BL, s N) = get(BL,N) .
+    eq get(BX BL, 0) = BX .
+
+    eq put(none, s N, BX) = false put(none, N, BX) .
+    eq put(none, 0, BX) = BX .
+    eq put(BX BL, s N, BY) = BX put(BL,N,BY) .
+    eq put(BX BL, 0, BY) = BY BL .
+endfm
+
+fmod EXPRESSION++ is
+    inc EXPRESSION .
+    inc MEMORY++ .
+
+    *** Sorts
+    sort BExpression Array BArray .
+    subsorts BoolVar Bool < BExpression .
+    subsort Array < Expression .
+    subsort BArray < BExpression .
+
+    *** Variables
+    var IV : IntVar .
+    var BV : BoolVar .
+    var B : Bool .
+    var M : Memory .
+    var E : Expression .
+    var L : List .
+    var BL : BList .
+
+    *** Operaciones
+    op eval : BExpression Memory -> Bool .
+    op _[_] : IntVar Expression -> Array .
+    op _[_] : BoolVar Expression -> BArray .
+    
+    *** Ecuaciones
+    eq eval(B, M) = B .
+    eq eval(BV, [BV, B] M) = B . 
+   ceq eval(BV,M) = false if BV in M =/= true .
+    
+    eq eval(IV[E], [IV,L] M) = get(L,eval(E,M)) .
+    ceq eval(IV[E], M) = 0 if IV in M =/= true .
+
+    eq eval(BV[E], [BV,BL] M) = get(BL, eval(E,M)) .
+    ceq eval(BV[E], M) = false if BV in M =/= true .
+endfm
+
+fmod TESTS++ is
+    inc TESTS .
+    inc EXPRESSION++ .
+    inc MEMORY++ .
+
+    *** Operaciones
+    op _=_ : Expression Expression -> Test .
+    op _>’_ : Expression Expression -> Test .
+    op _=_ : BExpression BExpression -> Test .
+    op _!=_ : Expression Expression -> Test .
+    op _!=_ : BExpression BExpression -> Test .
+    op _|_ : Test Test -> Test [assoc] .
+
+    *** Variables
+    vars E E' : Expression .
+    vars BE BE' : BExpression .
+    var M : Memory .
+    var T T' : Test .
+
+    *** Ecuaciones
+    eq eval(E = E', M) = eval(E,M) == eval(E',M) .
+    eq eval(E >’ E', M) = eval(E,M) > eval(E',M) .
+    eq eval(BE = BE', M) = eval(BE,M) == eval(BE',M) .
+    eq eval(E != E', M) = eval(E,M) =/= eval(E',M) .
+    eq eval(BE != BE', M) = eval(BE,M) =/= eval(BE',M) .
+    eq eval(T | T', M) = eval(T,M) or eval(T',M) .
+endfm
+
+fmod SEQUENTIAL++ is
+    inc SEQUENTIAL .
+    inc TESTS++ .
+    inc EXPRESSION++ .
+
+    *** Operaciones
+    op _:=_ : BoolVar BExpression -> Program .
+    op _:=_ : Array Expression -> Program .
+    op _:=_ : BArray BExpression -> Program .
+    op if_then_else_fi : Test Program Program -> Program .
+    op repeat_until_li : Program Test -> Program .
+endfm
+
+mod PARALLEL++ is
+    inc PARALLEL .
+    inc SEQUENTIAL++ .
+    inc TESTS++ .
+
+    *** Variables
+    var IV : IntVar .
+    var BV : BoolVar .
+    vars P P' R : Program .
+    var S : Soup .
+    var I : Pid .
+    var L : List .
+    var BL : BList .
+    var E E' : Expression .
+    var BE : BExpression .
+    var BX : Bool .
+    var M : Memory .
+    var T : Test .
+
+    *** := BoolVar
+    rl {[I, (BV := BE) ; R] | S, [BV, BX] M} => {[I, R] | S, [BV, eval(BE, [BV, BX] M)] M} .
+    crl {[I, (BV := BE) ; R] | S, M} => {[I, R] | S, [BV, eval(BE, M)] M} if BV in M =/= true .
+
+    *** := List IntVar
+    rl {[I, (IV[E] := E') ; R] | S, [IV, L] M} => {[I, R] | S, [IV, put(L,eval(E,[IV,L] M), eval(E',[IV,L] M))] M} .
+    crl {[I, (IV[E] := E') ; R] | S, M} => {[I, R] | S, [IV, put(none, eval(E,M), eval(E',M))] M} if IV in M =/= true .
+
+    *** := List BoolVar
+    rl {[I, (BV[E] := BE) ; R] | S, [BV, BL] M} => {[I, R] | S, [BV, put(BL,eval(E,[BV,BL] M), eval(BE, [BV,BL] M))] M} .
+    crl {[I, (BV[E] := BE) ; R] | S, M} => {[I, R] | S, [BV, put(none, eval(E,M), eval(BE,M))] M} if BV in M =/= true .
+
+    *** Operación 'if_then_else_fi'
+    rl {[I, if T then P else P' fi ; R] | S, M} => {[I, if eval(T, M) then P else P' fi ; R] | S, M} .
+
+    *** Operación 'repeat_until_li'
+    rl {[I, repeat P until T li ; R] | S, M} => {[I, P ; if eval(T,M) then skip else repeat P until T li fi ; R] | S, M} .
+
+endm
+
+eof
+
+    *** Comando para comprobar la exclusión mútua
+search initial =>* {S | [1, crit1 ; R] | [2, crit2 ; P], M} .
+
+    *** Comando para comprobar el no bloqueo
+search initial =>! MS:MachineState .
