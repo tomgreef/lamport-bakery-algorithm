@@ -1,5 +1,4 @@
 mod BAKERY is
-    *** Imports
     including CONFIGURATION .
     protecting NAT .
 
@@ -7,13 +6,13 @@ mod BAKERY is
     sorts GBState Mode .
     subsort Nat < Oid .
 
-    *** Operations
+    *** Operaciones
     op [[_]] : Configuration -> GBState .
     ops sleep wait crit : -> Mode [ctor] .
     op initial : Nat -> GBState .
     op auxInitial : Nat -> Configuration .
 
-    *** Classes
+    *** Clases BProcess y Dispenser
     --- class BProcess | mode: Mode, number: Nat .
     sort BProcess .
     subsort BProcess < Cid .
@@ -28,18 +27,18 @@ mod BAKERY is
     op next:_ : Nat -> Attribute [gather (&)] .
     op last:_ : Nat -> Attribute [gather (&)] .
 
-    *** Vars
+    *** Variables
     vars N L : Nat .
     vars D P : Oid .
     var C : Configuration .
     var Atts : Attribute .
 
-    *** Equations
+    *** Ecuaciones
     eq initial (N) = [[< 0 : Dispenser | next: 1 , last: 1 > auxInitial(N) ]] .
     eq auxInitial (0) = < 0 : BProcess | mode: sleep, number: 0 > .
     eq auxInitial (s N) = < N : BProcess | mode: sleep, number: 0 > auxInitial(N) .
 
-    *** Rules
+    *** Reglas
     rl [take-number] : 
     < D : Dispenser | last: L, Atts > < P : BProcess | mode: sleep, number: 0 > C
     => 
@@ -81,17 +80,17 @@ mod ABSTRACT-BAKERY-PREDS is
 
     subsort GBState < State .
 
-    *** Operations
+    *** Operaciones
     op processIn : Nat Mode -> Prop . 
     op notInMutex : -> Prop .
 
-    *** Vars
+    *** Variables
     var M : Mode .
     vars P P' : Nat .
     vars N N' : Nat .
     var C : Configuration . 
         
-    *** Equations
+    *** Ecuaciones
     eq [[ < P : BProcess | mode: M, number: N > C ]] |= processIn(P, M) = true . 
     eq [[ < P : BProcess | mode: crit, number: N >
           < P' : BProcess | mode: crit, number: N' > C ]] |= notInMutex = true .
