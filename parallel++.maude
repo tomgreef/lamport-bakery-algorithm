@@ -107,7 +107,7 @@ fmod EXPRESSION++ is
     ceq eval(IV[IE], M) = 0 if IV in M =/= true .
 endfm
 
-fmod TEST++ is 
+fmod TESTS++ is 
     extending TESTS .
     including EXPRESSION++ .
     including MEMORY++ .
