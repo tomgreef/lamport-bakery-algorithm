@@ -94,13 +94,11 @@ fmod EXPRESSION++ is
         *** BOOL
     eq eval(B, M) = B .
     eq eval(BV, [BV, B] M) = B .
-    ceq eval(BV, M) = false if BV in M =/= true .
-    --- eq eval(BV, M) = false [owise] . ALTERNATIVA
+    eq eval(BV, M) = false [owise] .
         *** INT
     eq eval(I, M) = I .
     eq eval(IV, [IV, I] M) = I .
-    ceq eval(IV, M) = 0 if IV in M =/= true .
-    --- eq eval(IV, M) = 0 [owise] . ALTERNATIVA
+    eq eval(IV, M) = 0 [owise] .
         *** LIST BOOL
     eq eval(BV[IE], [BV, LB] M) = get(eval(IE, M), LB) .
     ceq eval(BV[IE], M) = false if BV in M =/= true .
