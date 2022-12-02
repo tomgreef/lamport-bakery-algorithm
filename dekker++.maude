@@ -55,3 +55,7 @@ mod DEKKER++ is
 
     eq initial = { [1, p1] | [2, p2], [turn, 1]} .
 endm
+
+search initial(5) =>* {S:Soup | [I:Pid, crit ; R:Program] | [I':Pid, crit ; R':Program], M:Memory} .
+
+search initial(5) =>! MS:MachineState . 
